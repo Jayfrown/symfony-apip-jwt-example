@@ -1,0 +1,26 @@
+dn: ou=Groups,dc=example,dc=org
+ou: Groups
+objectClass: organizationalUnit
+objectClass: top
+
+dn: ou=Users,dc=example,dc=org
+ou: Users
+objectClass: organizationalUnit
+objectClass: top
+
+dn: cn=Admin,ou=Groups,dc=example,dc=org
+cn: Admin
+gidNumber: 500
+memberUid: admin@example.org
+objectClass: posixGroup
+objectClass: top
+
+dn: uid=admin@example.org,ou=Users,dc=example,dc=org
+cn: Ad Ministrator
+givenName: Ad
+objectClass: inetOrgPerson
+objectClass: top
+userPassword:: e1NTSEF9RDM5c0Y5Vktyc2ZxejdiZHJaSEdZS3hNSzhidWljVHo=
+sn: Ministrator
+uid: admin@example.org
+

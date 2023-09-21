@@ -1,0 +1,107 @@
+version: "3.4"
+
+# Development environment override
+services:
+  php:
+    volumes:
+      # The "cached" option has no effect on Linux but improves performance on Mac
+      - ./:/srv/app:rw,cached
+      - ./docker/php/conf.d/symfony.dev.ini:/usr/local/etc/php/conf.d/symfony.ini
+      # If you develop on Mac you can remove the var/ directory from the bind-mount
+      # for better performance by enabling the next line 
+      - /srv/app/var
+    environment:
+      APP_ENV: dev
+
+  caddy:
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./public:/srv/app/public:ro
+
+  database:
+    image: 'mariadb:10.7.3'
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-e90e89b9f0dcf70b1ff281ea80f358f7}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-app}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      # To allow the host machine to access the ports below, modify the lines below.
+      # For example, to allow the host to connect to port 3306 on the container, you would change
+      # "3306" to "3306:3306". Where the first port is exposed to the host and the second is the container port.
+      # See https://docs.docker.com/compose/compose-file/#ports for more information.
+      - '3306:3306'
+
+  openldap:
+    image: osixia/openldap:1.5.0
+    restart: unless-stopped
+    environment:
+      LDAP_LOG_LEVEL: "256"
+      LDAP_ORGANISATION: ${LDAP_ORGANISATION:-Example Inc.}
+      LDAP_DOMAIN: ${LDAP_DOMAIN:-example.org}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-"dc=example,dc=org"}
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-admin}
+      LDAP_CONFIG_PASSWORD: ${LDAP_CONFIG_PASSWORD:-config}
+      LDAP_READONLY_USER: "true"
+      LDAP_READONLY_USER_USERNAME: ${LDAP_READONLY_USER_USERNAME:-readonly}
+      LDAP_READONLY_USER_PASSWORD: ${LDAP_READONLY_USER_PASSWORD:-readonly}
+      LDAP_RFC2307BIS_SCHEMA: "false"
+      LDAP_BACKEND: "mdb"
+      LDAP_TLS: "true"
+      LDAP_TLS_CRT_FILENAME: "ldap.crt"
+      LDAP_TLS_KEY_FILENAME: "ldap.key"
+      LDAP_TLS_DH_PARAM_FILENAME: "dhparam.pem"
+      LDAP_TLS_CA_CRT_FILENAME: "ca.crt"
+      LDAP_TLS_ENFORCE: "false"
+      LDAP_TLS_CIPHER_SUITE: "SECURE256:-VERS-SSL3.0"
+      LDAP_TLS_VERIFY_CLIENT: "demand"
+      LDAP_REPLICATION: "false"
+      KEEP_EXISTING_CONFIG: "false"
+      LDAP_REMOVE_CONFIG_AFTER_SETUP: "true"
+      LDAP_SSL_HELPER_PREFIX: "ldap"
+    tty: true
+    stdin_open: true
+    volumes:
+      - ldap_data:/var/lib/ldap
+      - ldap_config:/etc/ldap/slapd.d
+      - ldap_certs:/container/service/slapd/assets/certs/
+    ports:
+      - "389:389"
+      - "636:636"
+
+  openldap-seed:
+    image: osixia/openldap
+    entrypoint: sh -c 'sleep 5; ldapadd -v -h openldap -c -D "cn=admin,dc=example,dc=org" -w admin -f /ldifs/database.ldif'
+    volumes:
+      - ./docker/ldap:/ldifs
+    links:
+      - openldap
+    depends_on:
+      - openldap
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:latest
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: "openldap"
+      PHPLDAPADMIN_HTTPS: "false"
+    ports:
+      - "8080:80"
+    depends_on:
+      - openldap
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    environment:
+      PMA_HOST: database
+      PMA_PORT: 3306
+    ports:
+      - "8081:80"
+    depends_on:
+      - database
+
+volumes:
+  mysql_data:
+  ldap_data:
+  ldap_config:
+  ldap_certs:

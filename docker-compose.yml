@@ -1,0 +1,66 @@
+version: "3.4"
+
+services:
+  php:
+    build:
+      context: .
+      target: symfony_php
+      args:
+        SYMFONY_VERSION: ${SYMFONY_VERSION:-6.3.99}
+        SKELETON: ${SKELETON:-symfony/skeleton}
+        STABILITY: ${STABILITY:-stable}
+    restart: unless-stopped
+    volumes:
+      - php_socket:/var/run/php
+      - jwt_keypair:/srv/app/config/jwt
+    healthcheck:
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+    environment:
+      DATABASE_URL: "mysqli://root:${MYSQL_ROOT_PASSWORD:-e90e89b9f0dcf70b1ff281ea80f358f7}@database:3306/${MYSQL_DATABASE:-app}?serverVersion=mariadb-10.7.3"
+      MERCURE_URL: ${CADDY_MERCURE_URL:-http://caddy/.well-known/mercure}
+      MERCURE_PUBLIC_URL: https://${SERVER_NAME:-localhost}/.well-known/mercure
+      MERCURE_JWT_SECRET: ${CADDY_MERCURE_JWT_SECRET:-3bf9f7c5f5a53ec523adb3f00349b2bc}
+      JWT_PASSPHRASE: ${JWT_PASSPHRASE:-3de051124e8d92debaeedb982f62d537}
+      LDAP_HOST: openldap
+      LDAP_PORT: 389
+
+  caddy:
+    build:
+      context: .
+      target: symfony_caddy
+    depends_on:
+      - php
+    environment:
+      SERVER_NAME: ${SERVER_NAME:-localhost, caddy:80}
+      MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-3bf9f7c5f5a53ec523adb3f00349b2bc}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-3bf9f7c5f5a53ec523adb3f00349b2bc}
+    restart: unless-stopped
+    volumes:
+      - php_socket:/var/run/php
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      # HTTP
+      - target: 80
+        published: ${HTTP_PORT:-80}
+        protocol: tcp
+      # HTTPS
+      - target: 443
+        published: ${HTTPS_PORT:-443}
+        protocol: tcp
+      # HTTP/3
+      - target: 443
+        published: ${HTTP3_PORT:-443}
+        protocol: udp
+
+volumes:
+  php_socket:
+  jwt_keypair:
+  caddy_data:
+  caddy_config:
+
+# Mercure is installed as a Caddy module, prevent the Flex recipe from installing another service
+
