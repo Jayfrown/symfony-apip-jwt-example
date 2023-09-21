@@ -1,5 +1,20 @@
-controllers:
-    resource:
-        path: ../src/Controller/
-        namespace: App\Controller
-    type: attribute
+api_token_auth:
+  path: /api/token/auth
+  methods: ['POST']
+
+api_token_refresh:
+  path: /api/token/refresh
+  methods: ['POST']
+
+api_token_invalidate:
+  path: /api/token/invalidate
+  methods: ['POST']
+
+catchall:
+  path: /{wildcard}
+  controller: Symfony\Bundle\FrameworkBundle\Controller\RedirectController::urlRedirectAction
+  requirements:
+    wildcard: .*
+  defaults:
+    path: /api
+    permanent: false
